@@ -44,9 +44,14 @@ def getAverageRGB(chunk, w, h):
     for i in range(w):
         for j in range(h):
             num += 1
-            avR += chunk[i, j][0]
-            avG += chunk[i, j][1]
-            avB += chunk[i, j][2]
+            try:
+                avR += chunk[i, j][0]
+                avG += chunk[i, j][1]
+                avB += chunk[i, j][2]
+            except IndexError as exc:
+                avR += 50
+                avG += 50
+                avB += 50
     avR /= num
     avG /= num
     avB /= num
@@ -74,21 +79,33 @@ image = cv2.imread("image.jpg")
 copy = cv2.imread("image.jpg")
 height, width, _ = image.shape
 
+# Force to be 300x300 if its not already
+if not height == 300 or not width == 300:
+    image = cv2.resize(image, (300, 300), interpolation = cv2.INTER_AREA)
+
 # Split into squares, 30x30 = 900 squares
-div = 30
+div = 50
 scaleX, scaleY = int(width/div), int(height/div)
 
 for i in range(div):
     for j in range(div):
         section = image[j*scaleX:(j+1)*scaleX, i*scaleY:(i+1)*scaleY]
         r, g, b = getAverageRGB(section, scaleX, scaleY)
-
-        winnerFile = cv2.imread('img\\' + getRGBDiffWinner(r, g, b))
+        winner = getRGBDiffWinner(r, g, b)
+        winnerFile = cv2.imread('img\\' + winner)
         height, width = winnerFile.shape[:2]
         newW, newH = (j+1)*scaleX - j*scaleX, (i+1)*scaleY - i*scaleY
-        winnerFile = cv2.resize(winnerFile, (newW, newH), interpolation = cv2.INTER_AREA)
-        image[j*scaleX:(j+1)*scaleX, i*scaleY:(i+1)*scaleY] = winnerFile
+        winnerOut = cv2.resize(winnerFile, (newW, newH), interpolation = cv2.INTER_AREA)
+        try:
+            image[j*scaleX:(j+1)*scaleX, i*scaleY:(i+1)*scaleY] = winnerOut
+        except ValueError as exc:
+            try:
+                winnerOut = cv2.resize(winnerFile, (newH, newW), interpolation = cv2.INTER_AREA)
+                image[j*scaleX:(j+1)*scaleX, i*scaleY:(i+1)*scaleY] = winnerOut
+            except ValueError as exc:
+                print("Not placing square at",i,j)
 
+# Display the input and output
 cv2.imshow('Output', image)
 cv2.imshow('Input', copy)
 cv2.waitKey(0)
